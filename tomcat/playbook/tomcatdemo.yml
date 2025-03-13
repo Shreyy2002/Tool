@@ -1,0 +1,46 @@
+---
+- name: Install Apache Tomcat server
+  hosts: tomcat-server
+  become: true
+  remote_user: ubuntu
+  vars:
+    tomcat_user: ubuntu
+    tomcat_group: ubuntu
+    ansible_ssh_private_key_file: tool.pem
+  tasks:
+    - name: Update apt package
+      apt:
+        update_cache: yes
+
+    - name: Install Java
+      apt:
+        name: openjdk-11-jdk
+        state: present
+
+    - name: Download Tomcat
+      get_url:
+        url: "https://dlcdn.apache.org/tomcat/tomcat-10/v10.1.23/bin/apache-tomcat-10.1.23.tar.gz"
+        dest: "/tmp/apache-tomcat-10.1.23.tar.gz"
+
+    - name: Extract Tomcat
+      unarchive:
+        src: "/tmp/apache-tomcat-10.1.23.tar.gz"
+        dest: "/opt"
+        remote_src: yes
+
+    - name: Set permissions for Tomcat directory
+      file:
+        path: "/opt/apache-tomcat-10.1.23"
+        owner: "{{ tomcat_user }}"
+        group: "{{ tomcat_group }}"
+        mode: "0755"
+
+    - name: Start Tomcat service
+      shell: "/opt/apache-tomcat-10.1.23/bin/startup.sh"
+      ignore_errors: true
+
+    - name: Wait for Tomcat to start
+      wait_for:
+        host: localhost
+        port: 8080
+        state: started

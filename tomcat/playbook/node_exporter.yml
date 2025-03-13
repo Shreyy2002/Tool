@@ -1,0 +1,57 @@
+---
+- name: Install and configure Node Exporter
+  hosts: tomcat-server
+  become: true
+  tasks:
+    - name: Download Node Exporter binary
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v1.6.0/node_exporter-1.6.0.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+
+    - name: Extract Node Exporter binary
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /usr/local/bin
+        remote_src: yes
+        creates: /usr/local/bin/node_exporter-1.6.0.linux-amd64/node_exporter
+
+    - name: Create symbolic link for Node Exporter binary
+      ansible.builtin.file:
+        src: /usr/local/bin/node_exporter-1.6.0.linux-amd64/node_exporter
+        dest: /usr/local/bin/node_exporter
+        state: link
+
+    - name: Create Node Exporter systemd service file
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/node_exporter.service
+
+    - name: Create node_exporter user
+      ansible.builtin.user:
+        name: node_exporter
+        shell: /bin/false
+
+    - name: Set permissions for the Node Exporter binary
+      ansible.builtin.file:
+        path: /usr/local/bin/node_exporter
+        owner: node_exporter
+        group: node_exporter
+        mode: "0755"
+
+    - name: Reload systemd and start Node Exporter service
+      ansible.builtin.systemd:
+        name: node_exporter
+        state: restarted
+        daemon_reload: yes

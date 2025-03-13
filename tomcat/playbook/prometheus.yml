@@ -1,0 +1,25 @@
+---
+- name: Install and configure Prometheus
+  hosts: monitor-server
+  become: true
+  vars:
+    node_exporter_host: "{{ hostvars[groups['tomcat-server'][0]]['private_ip'] }}"
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install Prometheus
+      apt:
+        name: prometheus
+        state: present
+    - name: Copy Prometheus configuration file
+      template:
+        src: templates/prometheus.yml.j2
+        dest: /etc/prometheus/prometheus.yml
+      notify: restart prometheus
+  handlers:
+    - name: restart prometheus
+      service:
+        name: prometheus
+        state: restarted
